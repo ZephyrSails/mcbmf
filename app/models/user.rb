@@ -24,6 +24,33 @@ class User < ActiveRecord::Base
                             dependent:   :destroy
   has_many :followers, through: :reverse_edges, source: :follower
 
+  #
+  # Get followees matrix based on options
+  # Options:
+  # => :minus_friends => (true | false)
+  #     when true, do not include one's followee who also followed him(her)
+  # => :more_than => (integer)
+  #     do not include user if his(her) followees count less than this integer
+  # E.g:
+  # => options = { minus_friends: true, more_than: 0 }
+  #
+  def User.get_followees_matrix(options)
+    g_arr = []
+    f_arr = []
+    User.all.each do |user|
+      # followees = []
+
+      followees = user.followees.pluck(:id)
+      followees -= user.friends_id if options[:minus_friends]
+      next if options[:more_than] != nil and followees.length <= options[:more_than]
+      unless followees.empty?
+        g_arr << followees
+        f_arr << user.id
+      end
+    end
+    [f_arr, g_arr]
+  end
+
   def count_friends
     User.all.each.inject 0 do |a, f|
       # puts f.id
@@ -42,6 +69,13 @@ class User < ActiveRecord::Base
   def friends
     self.followees.inject([]) do |a, f|
       a << f if f.is_friend_of? self
+      a
+    end
+  end
+
+  def friends_id
+    self.followees.inject([]) do |a, f|
+      a << f.id if f.is_friend_of? self
       a
     end
   end
