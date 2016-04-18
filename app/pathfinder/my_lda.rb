@@ -1,5 +1,5 @@
 class MyLda
-  attr_accessor :group_name, :user_array, :f_threshold, :num_topics, :f_arr, :lda
+  attr_accessor :data_dir, :lda_data_dir, :user_array, :f_threshold, :num_topics, :f_arr, :lda
   attr_reader :f_c, :g_c
 
   #
@@ -7,11 +7,12 @@ class MyLda
   # E.g:
   #   options = { minus_friends: true, more_than: 0 }
   #   f_arr, user_arr = User.get_followees_matrix(options)
-  #   mylda = MyLda.new("lda_test2", 0.05, f_arr, user_arr, 20)
+  #   mylda = MyLda.new("lda_test2", "lda1", 0.05, f_arr, user_arr, 20)
   #   mylda.run
   #
-  def initialize(group_name, f_threshold, f_arr, user_array, num_topics=20)
-    @group_name   = group_name
+  def initialize(data_dir, lda_name, f_threshold, f_arr, user_array, num_topics=10, g_c_base=2)
+    @data_dir     = data_dir
+    @lda_data_dir = "#{data_dir}/#{lda_name}"
     @f_arr        = f_arr
     @user_array   = user_array
     @f_threshold  = f_threshold
@@ -54,8 +55,8 @@ class MyLda
   # => lda_vocab.dat: see prep_vocab()
   #
   def prep_lda()
-    Dir.mkdir "data/#{@group_name}" unless File.exists? "data/#{@group_name}/"
-    o_file = File.open("data/#{@group_name}/lda_ap.dat", 'w')
+    Dir.mkdir "#{@lda_data_dir}" unless File.exists? "#{@lda_data_dir}"
+    o_file = File.open("#{@lda_data_dir}/lda_ap.dat", 'w')
     vocab = []
 
     @user_array.each do |followees|
@@ -85,7 +86,7 @@ class MyLda
   # => lda_vocab.dat: formal lda_vocab file reqired by ruby-lda.
   #
   def prep_vocab(vocab)
-    o_file = "data/#{@group_name}/lda_vocab.dat"
+    o_file = "#{@lda_data_dir}/lda_vocab.dat"
     output = File.open(o_file, 'w')
 
     vocab.each do |v|
@@ -98,13 +99,13 @@ class MyLda
   # Run ruby-lda EM algorithm with input files, return lda object
   #
   def process_lda()
-    corpus = Lda::DataCorpus.new("data/#{@group_name}/lda_ap.dat")
+    corpus = Lda::DataCorpus.new("#{@lda_data_dir}/lda_ap.dat")
 
     lda = Lda::Lda.new(corpus) # create an Lda object for training
     lda.num_topics = @num_topics
     # lda.em_max_iter
     lda.em("random")           # run EM algorithm using random starting points
-    lda.load_vocabulary("data/#{@group_name}/lda_vocab.dat")
+    lda.load_vocabulary("#{@lda_data_dir}/lda_vocab.dat")
     # normalize_gamma
     lda
     # lda.print_topics(20)     # print all topics with up to 20 words per topic
@@ -132,13 +133,10 @@ class MyLda
   def dispatch_followers(norm_gamma)
     # f_c stands for follower communities.
     f_c = [[]] * @lda.num_topics
-    allll = []
     norm_gamma.each_with_index do |doc, d_index|
       doc.each_with_index do |pr_z_d, z_index|
         # puts "#{pr_z_d}, #{z_index} [#{@lda.vocab[d_index]}, #{pr_z_d}] #{pr_z_d > @f_threshold}" if pr_z_d > @f_threshold
         if pr_z_d > @f_threshold
-          # f_c[z_index] << @lda.vocab[d_index]
-          allll << d_index if @f_arr[d_index] == nil
           f_c[z_index] += [[@f_arr[d_index], pr_z_d]]
         end
       end
@@ -156,7 +154,10 @@ class MyLda
   #
   def dispatch_followees
     g_count = @lda.vocab.count * 2 / @lda.num_topics
-    g_c = @lda.top_words(g_count)
+    g_c = @lda.top_words(g_count).values
+    g_c.each do |c|
+      c.map! { |g| g.to_i }
+    end
     g_c
   end
 
