@@ -34,6 +34,8 @@ class User < ActiveRecord::Base
   # E.g:
   # => options = { minus_friends: true, more_than: 0 }
   #
+
+
   def User.get_followees_matrix(options)
     g_arr = []
     f_arr = []
@@ -81,7 +83,8 @@ class User < ActiveRecord::Base
   end
 
   def is_friend_of? (other_user)
-    self.followees.include? other_user
+    self.following?(other_user) and other_user.following?(self)
+    # self.followees.include? other_user
   end
 
   def friends_of_friends

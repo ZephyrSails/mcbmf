@@ -1,4 +1,20 @@
 module Eros
+
+  #
+  # Output a list of only friends
+  #
+  def self.output_friends(dir)
+    o_file = "#{dir}/friends_list.dat"
+    output = File.open(dir, 'w')
+
+    User.all.each do |user|
+      user.friends_id.each do |friends_id|
+        output.puts "#{user.id},#{friends_id}"
+      end
+    end
+    output.close
+  end
+
   def self.common_friends
     o_file = "data/common_friends_count.csv"
     output = File.open(o_file, 'w')

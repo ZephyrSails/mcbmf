@@ -1,5 +1,5 @@
 class MyLda
-  attr_accessor :data_dir, :lda_data_dir, :user_array, :f_threshold, :num_topics, :f_arr, :lda
+  attr_accessor :lda_data_dir, :user_array, :f_c_thresh, :num_topics, :f_arr, :lda
   attr_reader :f_c, :g_c
 
   #
@@ -10,13 +10,13 @@ class MyLda
   #   mylda = MyLda.new("lda_test2", "lda1", 0.05, f_arr, user_arr, 20)
   #   mylda.run
   #
-  def initialize(data_dir, lda_name, f_threshold, f_arr, user_array, num_topics=10, g_c_base=2)
-    @data_dir     = data_dir
+  def initialize(data_dir, lda_name, f_arr, user_array, options)
     @lda_data_dir = "#{data_dir}/#{lda_name}"
     @f_arr        = f_arr
     @user_array   = user_array
-    @f_threshold  = f_threshold
-    @num_topics   = num_topics
+    @f_c_thresh   = options[:f_c_thresh]
+    @num_topics   = options[:num_topics]
+    @g_c_base     = options[:g_c_base]
   end
 
   #
@@ -126,7 +126,7 @@ class MyLda
   # Dispatch followers to each communities.
   # Input:
   # => @norm_gamma: see normalize_gamma(gamma)
-  # => @f_threshold: read from @f_threshold
+  # => @f_c_thresh: read from @f_c_thresh
   # Output:
   # => f_c: follower communities [topic_num][followers_in_that_topic]
   #
@@ -135,8 +135,8 @@ class MyLda
     f_c = [[]] * @lda.num_topics
     norm_gamma.each_with_index do |doc, d_index|
       doc.each_with_index do |pr_z_d, z_index|
-        # puts "#{pr_z_d}, #{z_index} [#{@lda.vocab[d_index]}, #{pr_z_d}] #{pr_z_d > @f_threshold}" if pr_z_d > @f_threshold
-        if pr_z_d > @f_threshold
+        # puts "#{pr_z_d}, #{z_index} [#{@lda.vocab[d_index]}, #{pr_z_d}] #{pr_z_d > @f_c_thresh}" if pr_z_d > @f_c_thresh
+        if pr_z_d > @f_c_thresh
           f_c[z_index] += [[@f_arr[d_index], pr_z_d]]
         end
       end
@@ -159,6 +159,29 @@ class MyLda
       c.map! { |g| g.to_i }
     end
     g_c
+  end
+
+  #
+  # Save the result of lda to file.
+  #
+  def output_lda()
+    output_path = "#{@lda_data_dir}/output"
+    Dir.mkdir "#{output_path}" unless File.exists? "#{output_path}"
+
+    @f_c.each_with_index do |community, c_index|
+      o_file = File.open("#{output_path}/edges_in_#{c_index}.dat", 'w')
+
+      doc_list = community.transpose.first
+      doc_list.each do |doc|
+        followees = User.find_by(id: doc).followees.pluck(:id) & @g_c[c_index]
+        followees.each do |followee|
+          o_file.puts "#{doc},#{followee}"
+        end
+      end
+
+      o_file.close
+    end
+    output_path
   end
 
 end
