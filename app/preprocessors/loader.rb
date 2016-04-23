@@ -1,6 +1,5 @@
 module Loader
 
-
   #
   # Read from .csv to database.
   # Input:
@@ -29,8 +28,9 @@ module Loader
 
     input.each_line do |line|
       edge = line.split(",")
-      edges_count += 1
-      if (edge[0].to_i % mod_offset == mod) && (edge[1].to_i % mod_offset == mod)
+      # edges_count += 1
+      if (edge[0].to_i % mod == mod_offset) && (edge[1].to_i % mod == mod_offset)
+        edges_count += 1
         count += 1
         output.puts line
 
@@ -106,20 +106,19 @@ module Loader
   #
   def self.split_for_test(dir, options)
     test_rate     = options[:test_rate]
-    test_friend?  = options[:test_friend?]
+    test_friend   = options[:test_friend?]
     test_file     = File.open("#{dir}/test_edges.dat", 'w')
 
-    Edges.all.each do |edge|
+    Edge.all.each do |edge|
       follower = edge.follower
       followee = edge.followee
 
       if (rand < test_rate)
-        if test_friend? or (!test_friend? and !(followee.following?(follower))))
-          test_file.puts "#{follower},#{followee}"
-          Edges.delete edge
+        if test_friend or (!test_friend and !(followee.following?(follower)))
+          test_file.puts "#{follower.id},#{followee.id}"
+          Edge.delete edge
         end
       end
-      test_file.save
 
       # if test_friend? # Test everyone
       #   if rand < test_rate
@@ -138,6 +137,7 @@ module Loader
       # end
 
     end
+    test_file.close
   end
 
   def self.add_index_to_users

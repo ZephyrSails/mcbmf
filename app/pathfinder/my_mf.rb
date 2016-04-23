@@ -1,11 +1,12 @@
 class MyMf
 
-  def initialize(dir, mf_name, lda_input_dir, options)
+  def initialize(dir, mf_name, lda_output_dir, options)
     @mf_dir         = "#{dir}/#{mf_name}"
-    @lda_input_dir  = lda_input_dir
-    @num_topics     = options[:num_topics]
-    @namespace      = options[:namespace]
-    @args           = options[:args]
+    Dir.mkdir "#{@mf_dir}" unless File.exists? "#{@mf_dir}"
+    @lda_output_dir  = lda_output_dir
+    @num_topics     = options[:lda_options][:num_topics]
+    @namespace      = options[:mf_options][:namespace]
+    @args           = options[:mf_options][:args]
   end
 
   def run()
@@ -15,14 +16,16 @@ class MyMf
     end
 
     for i in 0...@num_topics do
-      training_file   = " --training-file=#{@lda_input_dir}/edges_in_#{i}.dat"
+      training_file   = " --training-file=#{@lda_output_dir}/edges_in_#{i}.dat"
       prediction_file = " --prediction-file=#{@mf_dir}/mf_result_in_#{i}.dat"
       file_str = "#{training_file}#{prediction_file}"
 
-      return_str = %x{mono lib/cs/#{@namespace}.exe #{file_str} #{arg_string}}
+      puts "mono lib/cs/#{@namespace}.exe #{file_str} #{arg_str}"
+      return_str = %x{mono lib/cs/#{@namespace}.exe #{file_str} #{arg_str}}
     end
-  end
 
+    return @mf_dir
+  end
   # def call_mymedialite(arg_string)
   #   output_dir  = "#{@dir}/mf_output"
   #   recommender = options[:recommender]

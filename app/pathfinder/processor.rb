@@ -1,5 +1,5 @@
 class Processor
-  attr_accessor :group_name, :dir
+  attr_accessor :group_name, :dir, :options, :f_c, :lda_output_path, :mf_output_path
 
   #
   # Create a test instance
@@ -7,6 +7,7 @@ class Processor
   # /data/group_name/ (dir)
   # => edges.dat
   # => test_edges.dat
+  # => result_edges.dat
   # => lda/
   #    => lda_ap.dat
   #    => lda_vocab.dat
@@ -62,12 +63,14 @@ class Processor
     },
     :mf_options => {
       :namespace   => "item_recommendation", # or "rating_prediction"
-      :num_topics  => 10,
       :args => {
         "recommender"           => "BPRMF",
         "predict-items-number"  => "5",
-        "measures"              => "AUC, prec@5, recall@5 NDCG"
+        "measures"              => "\'AUC,prec@5,recall@5,NDCG\'"
       }
+    },
+    :recommend_options => {
+      :recommend_num => 3
     }
   }
 
@@ -98,7 +101,8 @@ class Processor
     f_arr, user_arr = User.get_followees_matrix(@options[:lda_options])
     mylda = MyLda.new(@dir, "lda", f_arr, user_arr, @options[:lda_options])
     mylda.run()
-    @output_path = mylda.output_lda()
+    @f_c = mylda.f_c
+    @lda_output_path = mylda.output_lda()
   end
 
   #
@@ -109,9 +113,20 @@ class Processor
   # => Prediction list
   #
   def mf_process()
-    my_mf = MyMf.new(@dir, "mf", @output_path, options[:mf_options])
-    my_mf.run()
+    my_mf = MyMf.new(@dir, "mf", @lda_output_path, @options)
+    @mf_output_path = my_mf.run()
+  end
 
+  #
+  # Recommend
+  #
+  def recommend()
+    recom = Recommender.new(@dir, @mf_output_path, @f_c, @options)
+    recom.run()
+  end
+
+  def evaluate()
+    eva = Evaluater.new(@dir)
   end
 
 end
