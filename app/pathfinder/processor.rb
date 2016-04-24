@@ -46,33 +46,6 @@ class Processor
   #                        comunities in average.
   #
 
-  options = {
-    :load_options => {
-      :source       => "data/edges.csv",
-      :mod          => 50,
-      :mod_offset   => 7,
-      :test_rate    => 0.1,
-      :test_friend? => true
-    },
-    :lda_options => {
-      :minus_friends => true,
-      :more_than     => 0,
-      :num_topics    => 10,
-      :f_c_thresh    => 0.1,
-      :g_c_base      => 2
-    },
-    :mf_options => {
-      :namespace   => "item_recommendation", # or "rating_prediction"
-      :args => {
-        "recommender"           => "BPRMF",
-        "predict-items-number"  => "5",
-        "measures"              => "\'AUC,prec@5,recall@5,NDCG\'"
-      }
-    },
-    :recommend_options => {
-      :recommend_num => 3
-    }
-  }
 
   def initialize(group_name, options)
     @group_name   = group_name
@@ -101,6 +74,7 @@ class Processor
     f_arr, user_arr = User.get_followees_matrix(@options[:lda_options])
     mylda = MyLda.new(@dir, "lda", f_arr, user_arr, @options[:lda_options])
     mylda.run()
+    # pro.f_c = mylda.dispatch_followers(mylda.lda.gamma)
     @f_c = mylda.f_c
     @lda_output_path = mylda.output_lda()
   end
@@ -113,19 +87,23 @@ class Processor
   # => Prediction list
   #
   def mf_process()
+    # pro.options[:mf_options][:args]["predict-items-number"] = 20
+    # my_mf = MyMf.new(pro.dir, "mf", pro.lda_output_path, pro.options)
     my_mf = MyMf.new(@dir, "mf", @lda_output_path, @options)
     @mf_output_path = my_mf.run()
   end
 
   #
   # Recommend
-  #
+  # %x{mono lib/cs/item_recommendation.exe --test-ratio=0.1 --recommender=BPRMF --measures='AUC,prec@5,recall@5,NDCG' --training-file=data/tinker2/lda/output/edges_in_9.dat}
   def recommend()
+    # recom = Recommender.new(pro.dir, pro.mf_output_path, pro.f_c, pro.options)
     recom = Recommender.new(@dir, @mf_output_path, @f_c, @options)
     recom.run()
   end
 
   def evaluate()
+    # eva = Evaluater.new(pro.dir)
     eva = Evaluater.new(@dir)
   end
 

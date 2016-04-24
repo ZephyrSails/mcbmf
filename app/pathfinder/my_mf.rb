@@ -15,6 +15,8 @@ class MyMf
       arg_str += " --#{key}=#{value}"
     end
 
+    # @eva
+
     for i in 0...@num_topics do
       training_file   = " --training-file=#{@lda_output_dir}/edges_in_#{i}.dat"
       prediction_file = " --prediction-file=#{@mf_dir}/mf_result_in_#{i}.dat"
@@ -26,6 +28,19 @@ class MyMf
 
     return @mf_dir
   end
+
+  def eva(return_str)
+    # "training data: 2426 users, 5115 items, 15621 events, sparsity 99.87412\ntest data:     812 users, 957 items, 1715 events, sparsity 99.7793\nBPRMF num_factors=10 bias_reg=0 reg_u=0.0025 reg_i=0.0025 reg_j=0.00025 num_iter=30 learn_rate=0.05 uniform_user_sampling=True with_replacement=False update_j=True \ntraining_time 00:00:00.3930830 AUC 0.76095 prec@5 0.02635 recall@5 0.11289 NDCG 0.23057 num_items 5549 num_lists 812 testing_time 00:00:02.0510760\n"
+    eva_hash = {}
+    training_data = str[/training data: (.*?)\n/, 1].strip.split(" ")
+    test_data = str[/test data: (.*?)\n/, 1].strip.split(" ")
+    eva_hash[:users_num] = training_data[0].to_i + test_data[0].to_i
+    eva_hash[:items_num] = training_data[2].to_i + test_data[2].to_i
+    eva_hash[:edges_num] = training_data[4].to_i + test_data[4].to_i
+    eva_hash[:sparsity]  = training_data[7]
+
+  end
+
   # def call_mymedialite(arg_string)
   #   output_dir  = "#{@dir}/mf_output"
   #   recommender = options[:recommender]

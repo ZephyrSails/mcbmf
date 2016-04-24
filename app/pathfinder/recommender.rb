@@ -20,6 +20,7 @@ class Recommender
     #     result_file.puts "#{user},#{followee[0]}"
     #   end
     # end
+
     score_hash = recommend_based_on_score
     score_hash.each do |line|
       result_file.puts line[0]

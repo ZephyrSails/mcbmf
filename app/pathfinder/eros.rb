@@ -13,6 +13,7 @@ module Eros
       end
     end
     output.close
+    
   end
 
   def self.common_friends
