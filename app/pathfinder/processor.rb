@@ -1,5 +1,6 @@
 class Processor
   attr_accessor :group_name, :dir, :options, :f_c, :lda_output_path, :mf_output_path
+  attr_accessor :mylda, :my_mf, :recom, :eva
 
   #
   # Create a test instance
@@ -46,7 +47,6 @@ class Processor
   #                        comunities in average.
   #
 
-
   def initialize(group_name, options)
     @group_name   = group_name
     @dir          = "data/#{group_name}"
@@ -55,8 +55,17 @@ class Processor
     Dir.mkdir "#{@dir}" unless File.exists? "#{@dir}"
   end
 
+  def run()
+    preprocess()
+    lda_process()
+    mf_process()
+    recommend()
+    evaluate()
+  end
 
-
+  # 
+  # Load file, split file, preprocess, etc..
+  #
   def preprocess()
     Loader.filter(@dir, @options[:load_options])
     Loader.load_data(@dir)
@@ -64,19 +73,25 @@ class Processor
   end
 
   #
-  # Input:
-  #
-  # Output:
+  # Lda is used to dispatch follower and followees to comunities.
   #
   def lda_process()
     # Eros.output_friends("#{@dir}")
     # options = { minus_friends: true, more_than: 0 }
     f_arr, user_arr = User.get_followees_matrix(@options[:lda_options])
-    mylda = MyLda.new(@dir, "lda", f_arr, user_arr, @options[:lda_options])
-    mylda.run()
-    # pro.f_c = mylda.dispatch_followers(mylda.lda.gamma)
-    @f_c = mylda.f_c
-    @lda_output_path = mylda.output_lda()
+    @mylda = MyLda.new(@dir, "lda", f_arr, user_arr, @options[:lda_options])
+    @mylda.run()
+    # pro.f_c = @mylda.dispatch_followers(@mylda.lda.gamma)
+    @f_c = @mylda.f_c
+    @lda_output_path = @mylda.output_lda()
+  end
+
+  def cbmf_lda_process()
+    f_list, g_arr, g_list, f_arr = User.get_cbmf_matrix(@options[:lda_options])
+    @mylda = CbLda.new(@dir, "lda", f_list, g_arr, g_list, f_arr, @options[:lda_options])
+    @mylda.run()
+    @f_c = @mylda.f_c
+    @lda_output_path = @mylda.output_lda()
   end
 
   #
@@ -88,9 +103,9 @@ class Processor
   #
   def mf_process()
     # pro.options[:mf_options][:args]["predict-items-number"] = 20
-    # my_mf = MyMf.new(pro.dir, "mf", pro.lda_output_path, pro.options)
-    my_mf = MyMf.new(@dir, "mf", @lda_output_path, @options)
-    @mf_output_path = my_mf.run()
+    # @my_mf = MyMf.new(pro.dir, "mf", pro.lda_output_path, pro.options)
+    @my_mf = MyMf.new(@dir, "mf", @lda_output_path, @options)
+    @mf_output_path = @my_mf.run()
   end
 
   #
@@ -98,13 +113,13 @@ class Processor
   # %x{mono lib/cs/item_recommendation.exe --test-ratio=0.1 --recommender=BPRMF --measures='AUC,prec@5,recall@5,NDCG' --training-file=data/tinker2/lda/output/edges_in_9.dat}
   def recommend()
     # recom = Recommender.new(pro.dir, pro.mf_output_path, pro.f_c, pro.options)
-    recom = Recommender.new(@dir, @mf_output_path, @f_c, @options)
-    recom.run()
+    @recom = Recommender.new(@dir, @mf_output_path, @f_c, @options)
+    @recom.run()
   end
 
   def evaluate()
     # eva = Evaluater.new(pro.dir)
-    eva = Evaluater.new(@dir)
+    @eva = Evaluater.new(@dir)
   end
 
 end

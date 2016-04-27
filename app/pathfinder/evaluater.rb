@@ -2,6 +2,8 @@ class Evaluater
   require 'csv'
   attr_accessor :test_file, :result_file, :test_arr, :result_arr, :test_hash, :result_hash
 
+  MAX = 10000
+
   def initialize(dir)
     @test_file   = "#{dir}/test_edges.dat"
     @result_file = "#{dir}/result_edges.dat"
@@ -10,24 +12,21 @@ class Evaluater
     @result_arr  = CSV.read(@result_file)
   end
 
-  def to_s(first=999999)
-    "Precision: #{percision(first)}, Recall: #{recall(first)}, F1: #{f1(first)}, conversion_rate: #{conversion_rate(first)}"
+  def to_s(top_n=MAX)
+    "Precision: #{precision(top_n)}, Recall: #{recall(top_n)}, F1: #{f1(top_n)}, conversion_rate: #{conversion_rate(top_n)}"
   end
 
-  # def loadfile
-  #   test_file = File.open(@test_file, "r+")
-  #   test.each do
   #
-  # end
-
-  def conversion_rate(first=999999)
+  # Calculate the conversion_rate of top_n result
+  #
+  def conversion_rate(top_n=MAX)
     @test_hash = Hash.new([])
     @result_hash = Hash.new([])
     @test_arr.each do |follower, followee|
       # puts "#{follower}, #{followee}"
       @test_hash[follower] += [followee]
     end
-    @result_arr[0...first].each do |follower, followee|
+    @result_arr[0...top_n].each do |follower, followee|
       @result_hash[follower] += [followee]
     end
 
@@ -38,19 +37,98 @@ class Evaluater
     conversion_count / @test_hash.count.to_f
   end
 
-  def recall(first=999999)
-    # test_arr = @test_arr[0..] if first != 0
-    puts "#{(@test_arr & @result_arr[0...first]).count} / #{@test_arr.count}"
-    (@test_arr & @result_arr[0...first]).count.to_f / @test_arr.count
+  #
+  # Calculate the recall of top_n result
+  #
+  def recall(top_n=MAX)
+    # test_arr = @test_arr[0..] if top_n != 0
+    puts "#{(@test_arr & @result_arr[0...top_n]).count} / #{@test_arr.count}"
+    (@test_arr & @result_arr[0...top_n]).count.to_f / @test_arr.count
   end
 
-  def percision(first=999999)
-    puts "#{(@test_arr & @result_arr[0...first]).count} / #{@result_arr[0...first].count}"
-    (@test_arr & @result_arr[0...first]).count.to_f / @result_arr[0...first].count
+  #
+  # Calculate the precision of top_n result
+  #
+  def precision(top_n=MAX)
+    puts "#{(@test_arr & @result_arr[0...top_n]).count} / #{@result_arr[0...top_n].count}"
+    (@test_arr & @result_arr[0...top_n]).count.to_f / @result_arr[0...top_n].count
   end
 
-  def f1(first=999999)
-    2 * (recall(first) * percision(first)) / (recall(first) + percision(first))
+  #
+  # Calculate f1 score
+  # f1 = (2 * precision * recall) / (precision * recall)
+  #
+  def f1(top_n=MAX)
+    2 * (recall(top_n) * precision(top_n)) / (recall(top_n) + precision(top_n))
+  end
+
+  #
+  # Used by dcg calculation
+  # See detail at https://en.wikipedia.org/wiki/Discounted_cumulative_gain
+  #
+  def get_rel_arr(top_n=MAX)
+    result_arr = @result_arr[0...top_n]
+    rel_arr    = Array.new(top_n, 0)
+
+    result_arr.each_with_index do |result_line, index|
+      rel_arr[index] = 1 if @test_arr.include? result_line
+    end
+    rel_arr
+  end
+
+  #
+  # Used by dcg calculation
+  # Actuall it's reciprocal of log' arr, but call it this way is simpler ;)
+  # See detail at https://en.wikipedia.org/wiki/Discounted_cumulative_gain
+  #
+  def get_log_arr(top_n=MAX)
+    (1..top_n).inject([]) { |arr, i| arr + [1/Math.log2(i+1)] }
+  end
+
+  #
+  # Calculate dcg (Discounted cumulative gain)
+  # Please use ndcg instead.
+  # See detail at https://en.wikipedia.org/wiki/Discounted_cumulative_gain
+  #
+  def dcg(top_n=MAX)
+    rel_arr = get_rel_arr(top_n)
+    log_arr = get_log_arr(top_n)
+    product(rel_arr, log_arr)
+    # (0...top_n).inject(0) { |product, i| product + rel_arr[i]*log_arr[i] }
+  end
+
+  #
+  # Calculate idcg (Idealized Discounted cumulative gain)
+  # Please use ndcg instead.
+  # See detail at https://en.wikipedia.org/wiki/Discounted_cumulative_gain
+  #
+  def idcg(top_n=MAX)
+    rel_arr = get_rel_arr(top_n).sort.reverse
+    log_arr = get_log_arr(top_n)
+    product(rel_arr, log_arr)
+    # (0...top_n).inject(0) { |product, i| product + rel_arr[i]*log_arr[i] }
+  end
+
+  #
+  # Multiply two array, like matrix, but should be faster
+  #
+  def product(arr1, arr2)
+    (0...arr1.count).inject(0) { |product, i| product + arr1[i]*arr2[i] }
+  end
+
+  #
+  # Calculate ndcg (Normalized Discounted cumulative gain)
+  # Please use this, do not use dcg and idcg.
+  # See detail at https://en.wikipedia.org/wiki/Discounted_cumulative_gain
+  #
+  def ndcg(top_n=MAX)
+    rel_arr   = get_rel_arr(top_n)
+    i_rel_arr = rel_arr.sort.reverse
+    log_arr   = get_log_arr(top_n)
+    dcg       = product(rel_arr, log_arr)
+    idcg      = product(i_rel_arr, log_arr)
+    dcg / idcg
+    # dcg(top_n) / idcg(top_n)
   end
 
 end

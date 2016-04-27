@@ -35,13 +35,21 @@ class User < ActiveRecord::Base
   # => options = { minus_friends: true, more_than: 0 }
   #
 
-
+  #
+  # Used by my_lda
+  # Output:
+  # => f_arr: Follower array, used to keep follower id.
+  #           when data loaded to lda. the follower id are not kept,
+  #           So, we use f_arr to keep it, when lda is finished, read it back.
+  # => g_arr: Followees array.
+  #           each elements in this array related to a group of followees that
+  #           followed by a follower(document).
+  #
   def User.get_followees_matrix(options)
     g_arr = []
     f_arr = []
-    User.all.each do |user|
-      # followees = []
 
+    User.all.each do |user|
       followees = user.followees.pluck(:id)
       followees -= user.friends_id if options[:minus_friends]
       next if options[:more_than] != nil and followees.length <= options[:more_than]
@@ -51,6 +59,44 @@ class User < ActiveRecord::Base
       end
     end
     [f_arr, g_arr]
+  end
+
+  #
+  # Used by cb_lda
+  #
+  def User.get_cbmf_matrix(options)
+    g_arr = []
+    f_list = []
+
+    f_arr = []
+    g_list = []
+
+    f_list = []
+    User.all.each do |user|
+      # followees = []
+      followees = user.followees.pluck(:id)
+      # followees -= user.friends_id if options[:minus_friends]
+      next if options[:more_than] != nil and followees.length <= options[:more_than]
+      unless followees.empty?
+        g_arr << followees
+        f_list << user.id
+      end
+    end
+
+    # According to the cbmf, followers of each followees are also loaded as
+    # document. But I think their way is wrong.
+    User.all.each do |user|
+      # followees = []
+      followers = user.followers.pluck(:id)
+      # followers -= user.friends_id if options[:minus_friends]
+      next if options[:more_than] != nil and followers.length <= options[:more_than]
+      unless followers.empty?
+        f_arr << followers
+        g_list << user.id
+      end
+    end
+
+    [f_list, g_arr, g_list, f_arr]
   end
 
   def count_friends
@@ -63,9 +109,6 @@ class User < ActiveRecord::Base
         puts f.id
       end
     end
-    # .
-    # .
-    # .
   end
 
   def friends

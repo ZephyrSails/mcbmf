@@ -14,8 +14,9 @@ module Loader
   #
   def self.filter(dir, options)
 
-    mod         = options[:mod]
-    mod_offset  = options[:mod_offset]
+    mod          = options[:mod]
+    mod_offset   = options[:mod_offset]
+    # g_num_thresh = options[:g_num_thresh]
     input  = File.open(options[:source], 'r+')
     output = File.open("#{dir}/edges.dat", 'w')
 
@@ -45,8 +46,81 @@ module Loader
     puts "Filter result: #{edges_count} edges survived."
 
     output.close
-
   end
+
+  def self.filter_by_followees(dir, options)
+
+    g_num_thresh = options[:g_num_thresh]
+    input  = File.open(options[:source], 'r+')
+    output = File.open("#{dir}/edges_#{g_num_thresh}.dat", 'w')
+
+    # Used to count.
+    count       = 0
+    edges_count = 0
+    k_count     = 0
+
+    followees_group = [nil, []]
+
+    input.each_line do |line|
+      edge = line.split(",")
+
+      if edge[0] == followees_group[0]
+        followees_group[1] << edge[1]
+      else
+        if followees_group[1].count > g_num_thresh
+          followees_group[1].each do |g|
+            output.puts "#{followees_group[0]},#{g}"
+          end
+        end
+        followees_group = [edge[0], [edge[1]]]
+      end
+      edges_count += 1
+      count += 1
+      if count > 10000
+        count = 0
+        k_count += 1
+        puts k_count * 10000
+      end
+    end
+    puts "Filter result: #{edges_count} edges survived."
+
+    output.close
+  end
+
+  def self.load_to_array(dir)
+    input  = File.open(dir, 'r+')
+
+    arr = []
+    h_k_count = 0
+    line_num = 0
+    start_time = Time.now
+    # arr = []
+    input.each_line do |line|
+      edge = line.split(",").map { |u| u.to_i }
+
+      if arr[edge[0]] == nil
+        arr[edge[0]] = [edge[1]]
+      else
+        arr[edge[0]] << edge[1]
+      end
+
+      line_num += 1
+      if line_num > 1000000
+        line_num = 0
+        h_k_count += 1
+        puts "#{h_k_count*1000000}, spent #{Time.now - start_time}"
+        start_time = Time.now
+
+      end
+    end
+    arr
+  end
+
+  # start_at = Time.now
+  # # arr = Array.new(10000000);
+  # arr[91316661] = 1
+  # puts "spents #{Time.now - start_at}"
+
 
   #
   # Load data to ActiveRecord database.
@@ -58,7 +132,7 @@ module Loader
   #   ActiveRecord in rails database: edges, nodes, modulized for process.
   #                                   Loaded from dir/edges.dat.
   #
-  def self.load_data(dir, file_name="edges.dat")
+  def self.load_data(dir, file_name="edges.dat", start_at=0)
     # test_rate   = options[:test_rate]
     input       = File.open("#{dir}/#{file_name}", 'r+')
     # test_file   = File.open("#{dir}/test_edges.dat", 'w')
@@ -69,6 +143,7 @@ module Loader
     start_time = Time.now
 
     input.each_line do |line|
+      next if (h_k_count*10000 + line_num) < start_at
       # if rand > test_rate
       edge = line.split(",")
 
@@ -83,7 +158,7 @@ module Loader
         h_k_count += 1
         interval = (Time.now - start_time)
         start_time = Time.now
-        print "#{h_k_count*10000}, spent #{interval}"
+        puts "#{h_k_count*10000}, spent #{interval}"
       end
       # else
       #   test_file.puts line
