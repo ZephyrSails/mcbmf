@@ -1,6 +1,6 @@
 class MyLda
   attr_accessor :lda_data_dir, :user_array, :f_c_thresh, :num_topics, :f_arr, :lda
-  attr_reader :f_c, :g_c
+  attr_reader :f_c, :g_c, :options
 
   #
   # Create a lda group, save the parameters
@@ -10,13 +10,14 @@ class MyLda
   #   mylda = MyLda.new("lda_test2", "lda1", 0.05, f_arr, user_arr, 20)
   #   mylda.run
   #
-  def initialize(data_dir, lda_name, f_arr, user_array, options)
+  def initialize(user, data_dir, lda_name, options)
+    @user         = user
     @lda_data_dir = "#{data_dir}/#{lda_name}"
-    @f_arr        = f_arr
-    @user_array   = user_array
+
     @f_c_thresh   = options[:f_c_thresh]
     @num_topics   = options[:num_topics]
     @g_c_base     = options[:g_c_base]
+    @options      = options
   end
 
   #
@@ -37,31 +38,39 @@ class MyLda
   #
   def run
     begin_at = Time.now
-    self.prep_lda()
+    prep_lda()
     puts "prep_lda finished, time spent #{Time.now - begin_at}"
+
     begin_at = Time.now
-    @lda = self.process_lda()
-    norm_gamma = self.normalize_gamma(@lda.gamma)
-    @f_c = self.dispatch_followers(norm_gamma)
-    @g_c = self.dispatch_followees
-    puts "lda finished, time spent #{Time.now - begin_at}"
+    @lda = process_lda()
+    puts "process_lda finished, time spent #{Time.now - begin_at}"
+    begin_at = Time.now
+
+    norm_gamma = normalize_gamma(@lda.gamma)
+    @f_c = dispatch_followers(norm_gamma)
+    @g_c = dispatch_followees
+    puts "lda dispatch finished, time spent #{Time.now - begin_at}"
+
+    return @f_c
   end
 
   #
   # Get follower-followee pair ready to meet lda-ruby required format.
   # Meanwhile, map user id to vocabulary list.
   # Input:
-  # => @user_array: containing all users in corpus
+  # => @user_arr: containing all users in corpus
   # Output:
   # => lda_ap.dat(corpus): formal corpus file required by lda-ruby
   # => lda_vocab.dat: see prep_vocab()
   #
   def prep_lda()
+    @f_arr, @user_arr = @user.get_followees_matrix(@options)
+
     Dir.mkdir "#{@lda_data_dir}" unless File.exists? "#{@lda_data_dir}"
     o_file = File.open("#{@lda_data_dir}/lda_ap.dat", 'w')
     vocab = []
 
-    @user_array.each do |followees|
+    @user_arr.each do |followees|
       lda_string = "#{followees.length}"
       followees.each do |f|
         index = vocab.index(f)
@@ -101,14 +110,23 @@ class MyLda
   # Run ruby-lda EM algorithm with input files, return lda object
   #
   def process_lda()
+    puts "start to load corpus at: #{begin_at = Time.now}"
     corpus = Lda::DataCorpus.new("#{@lda_data_dir}/lda_ap.dat")
+    # corpus = Lda::DataCorpus.new("#{pro.mylda.lda_data_dir}/lda_ap.dat");0
+    puts "load corpus finished, spent #{Time.now - begin_at}"
 
+
+    puts "start to init lda at: #{begin_at = Time.now}"
     lda = Lda::Lda.new(corpus) # create an Lda object for training
     lda.num_topics = @num_topics
+    puts "init lda finished, spent #{Time.now - begin_at}"
+
     # lda.em_max_iter
+    puts "start to em at: #{begin_at = Time.now}"
     lda.em("random")           # run EM algorithm using random starting points
     lda.load_vocabulary("#{@lda_data_dir}/lda_vocab.dat")
     # normalize_gamma
+    puts "em finished, spent #{Time.now - begin_at}"
     lda
     # lda.print_topics(20)     # print all topics with up to 20 words per topic
   end
@@ -167,15 +185,17 @@ class MyLda
   # Save the result of lda to file.
   #
   def output_lda()
-    output_path = "#{@lda_data_dir}/output"
+    output_path = "#{@lda_data_dir}/output_user"
     Dir.mkdir "#{output_path}" unless File.exists? "#{output_path}"
 
     @f_c.each_with_index do |community, c_index|
-      o_file = File.open("#{output_path}/edges_in_#{c_index}.dat", 'w')
+      o_file = File.open("#{output_path}/f_c_#{c_index}.dat", 'w')
 
       doc_list = community.transpose.first
       doc_list.each do |doc|
-        followees = User.find_by(id: doc).followees.pluck(:id) & @g_c[c_index]
+        followees = @user.followees_of(doc) & @g_c[c_index]
+        followees -= @user.friends_of(doc) if @options[:mutual_mf] == false
+        # followees = User.find_by(id: doc).followees.pluck(:id) & @g_c[c_index]
         followees.each do |followee|
           o_file.puts "#{doc},#{followee}"
         end
@@ -184,6 +204,40 @@ class MyLda
       o_file.close
     end
     output_path
+  end
+
+  #
+  # Store f_c and g_c of each group
+  # Different from output_lda, which output the edges of each community
+  # We will leave this process to mf process
+  #
+  def output()
+
+    output_path = "#{@lda_data_dir}/output_user"
+
+    Dir.mkdir "#{output_path}" unless File.exists? "#{output_path}"
+    @f_c.each_with_index do |community, c_index|
+      f_c_file = File.open("#{output_path}/f_c_#{c_index}.dat", 'w')
+
+      community.each do |f_c_pair|
+        # puts "lda: outputing f_c_#{c_index}"
+        f_c_file.puts "#{f_c_pair[0]}:#{f_c_pair[1]}"
+      end
+
+      f_c_file.close
+    end
+
+    @g_c.each_with_index do |community, c_index|
+      g_c_file = File.open("#{output_path}/g_c_#{c_index}.dat", 'w')
+
+      community.each do |g_c|
+        # puts "lda: outputing g_c_#{c_index}"
+        g_c_file.puts "#{g_c}"
+      end
+
+      g_c_file.close
+    end
+
   end
 
 end

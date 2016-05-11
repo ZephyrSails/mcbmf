@@ -41,7 +41,6 @@ class Recommender
 
   def sum_score
     hash = Hash.new
-
     for i in 0...@num_topics do
       hash = decode_to_hash("#{@mf_output_path}/mf_result_in_#{i}.dat", @f_c[i].to_h, hash)
     end

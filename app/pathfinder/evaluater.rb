@@ -5,11 +5,13 @@ class Evaluater
   MAX = 10000
 
   def initialize(dir)
+    @dir         = dir
     @test_file   = "#{dir}/test_edges.dat"
     @result_file = "#{dir}/result_edges.dat"
 
     @test_arr    = CSV.read(@test_file)
     @result_arr  = CSV.read(@result_file)
+    Time.now
   end
 
   def to_s(top_n=MAX)
@@ -34,7 +36,9 @@ class Evaluater
     @test_hash.each do |follower, followees|
       conversion_count += 1 unless (@test_hash[follower] & @result_hash[follower]).empty?
     end
+    # (conversion_count / test_hash.count.to_f)
     conversion_count / @test_hash.count.to_f
+    # conversion_count / @test_hash.count.to_f
   end
 
   #
@@ -128,7 +132,115 @@ class Evaluater
     dcg       = product(rel_arr, log_arr)
     idcg      = product(i_rel_arr, log_arr)
     dcg / idcg
-    # dcg(top_n) / idcg(top_n)
+  end
+
+  def group_recall(group_arr)
+    group_arr.collect do |n|
+      (@test_arr & @result_arr[0...n]).count.to_f / @test_arr.count
+    end
+  end
+
+
+  def group_precision(group_arr)
+    group_arr.collect do |n|
+      (@test_arr & @result_arr[0...n]).count.to_f / @result_arr[0...n].count
+    end
+  end
+
+  def group_f1(recall_arr, precision_arr)
+    [*0...recall_arr.count].collect {|i|2*(recall_arr[i]*precision_arr[i])/(recall_arr[i]+precision_arr[i])}
+  end
+
+  def group_ndcg(group_arr)
+    all_rel_arr = get_rel_arr(group_arr.last)
+    # i_rel_arr   = rel_arr.sort.reverse
+    log_arr     = get_log_arr(group_arr.last)
+
+    length = group_arr.count
+    arr = []
+    group_arr.each do |top_n|
+      rel_arr   = all_rel_arr[0..top_n]
+      i_rel_arr = rel_arr.sort.reverse
+      dcg       = product(rel_arr, log_arr)
+      idcg      = product(i_rel_arr, log_arr)
+      arr << (dcg / idcg)
+    end
+    arr
+  end
+  #
+  # def dcg(top_n=MAX)
+  #   rel_arr = get_rel_arr(top_n)
+  #   log_arr = get_log_arr(top_n)
+  #   product(rel_arr, log_arr)
+  #   # (0...top_n).inject(0) { |product, i| product + rel_arr[i]*log_arr[i] }
+  # end
+  # def idcg(top_n=MAX)
+  #   rel_arr = get_rel_arr(top_n).sort.reverse
+  #   log_arr = get_log_arr(top_n)
+  #   product(rel_arr, log_arr)
+  #   # (0...top_n).inject(0) { |product, i| product + rel_arr[i]*log_arr[i] }
+  # end
+  # def ndcg(top_n=MAX)
+  #   rel_arr   = get_rel_arr(top_n)
+  #   i_rel_arr = rel_arr.sort.reverse
+  #   log_arr   = get_log_arr(top_n)
+  #   dcg       = product(rel_arr, log_arr)
+  #   idcg      = product(i_rel_arr, log_arr)
+  #   dcg / idcg
+  # end
+
+  def group_conversion_rate(group_arr)
+    test_hash = Hash.new([])
+    test_arr.each do |follower, followee|
+      # puts "#{follower}, #{followee}"
+      test_hash[follower] += [followee]
+    end
+
+    result_hash = Hash.new([])
+    length = group_arr.count
+    group_arr = [0] + group_arr
+    conversion_rate_arr = []
+    for i in 1...length do
+      result_arr[group_arr[i-1]...group_arr[i]].each do |follower, followee|
+        result_hash[follower] += [followee]
+      end
+
+      conversion_count = 0
+      test_hash.each do |follower, followees|
+        conversion_count += 1 unless (test_hash[follower] & result_hash[follower]).empty?
+      end
+      conversion_rate_arr << (conversion_count / test_hash.count.to_f)
+    end
+    conversion_rate_arr
+  end
+
+  def save_report(linspace_count=10)
+    test_count = @test_arr.count
+    group_arr = linspace(0, test_count*2, linspace_count)
+
+    o_file = File.open("#{@dir}/report.dat", 'w')
+    o_file.puts "--test_edges.count:"
+    o_file.puts test_count
+    o_file.puts "--recalls:"
+    puts "--recalls:"
+    o_file.puts recall_arr = group_recall(group_arr)
+    o_file.puts "--precisions:"
+    puts "--precisions:"
+    o_file.puts precision_arr = group_precision(group_arr)
+    o_file.puts "--f1s:"
+    puts "--f1s:"
+    o_file.puts group_f1(recall_arr, precision_arr)
+    o_file.puts "--conversion_rates:"
+    puts "--conversion_rates:"
+    o_file.puts group_conversion_rate(group_arr)
+    o_file.puts "--ndcgs:"
+    puts "--ndcgs:"
+    o_file.puts group_ndcg(group_arr)
+    o_file.close
+  end
+
+  def linspace(low, high, num)
+    [*1..num].collect { |i| low + i * (high-low)/num }
   end
 
 end

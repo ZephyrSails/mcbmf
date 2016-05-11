@@ -1,12 +1,15 @@
 class MyMf
+  attr_accessor :dir, :mf_dir, :lda_output_dir, :num_topics, :namespace, :args
 
   def initialize(dir, mf_name, lda_output_dir, options)
+    @dir            = dir
     @mf_dir         = "#{dir}/#{mf_name}"
     Dir.mkdir "#{@mf_dir}" unless File.exists? "#{@mf_dir}"
     @lda_output_dir  = lda_output_dir
     @num_topics     = options[:lda_options][:num_topics]
     @namespace      = options[:mf_options][:namespace]
     @args           = options[:mf_options][:args]
+    @mutual_mf      = options[:mf_options][:mutual_mf]
   end
 
   def run()
@@ -29,6 +32,85 @@ class MyMf
     return @mf_dir
   end
 
+  #
+  # Input:
+  # dir/lda/output_user/g_c & f_c
+  #
+  def preprocess(user)
+    output_dir = "#{@lda_output_dir}"
+    input_dir = "#{@dir}/lda/output_user"
+    Dir.mkdir "#{output_dir}" unless File.exists? "#{output_dir}"
+
+    for i in 0...@num_topics do
+      f_c_file = File.open("#{input_dir}/f_c_#{i}.dat", "r+")
+      f_c = []
+      f_c_file.each_line do |line|
+        f_c_pair = line.split(":")
+        # f_c << [f_c_pair[0].to_i, f_c_pair[1].to_f]
+        f_c << f_c_pair[0].to_i
+      end
+      f_c_file.close
+
+      g_c_file = File.open("#{input_dir}/g_c_#{i}.dat", "r+")
+      g_c = []
+      g_c_file.each_line do |line|
+        g_c << line.to_i
+      end
+      g_c_file.close
+
+      o_file = File.open("#{output_dir}/edges_in_#{i}.dat", 'w')
+      # doc_list = f_c.transpose.first
+      # doc_list = f_c
+      # puts "f_c: #{f_c.count}, g_c #{g_c.count}"
+      # adsfdsfasdfasd
+      f_c.each do |doc|
+        # puts "user.followees_of(doc): #{user.followees_of(doc)}, g_c[i]: #{g_c[i].count}"
+        # puts doc
+        followees = user.followees_of(doc) & g_c
+        # puts followees
+        followees -= user.friends_of(doc) if @mutual_mf == false
+        # followees = User.find_by(id: doc).followees.pluck(:id) & @g_c[i]
+        followees.each do |followee|
+          # puts "#{doc},#{followee}"
+          # dasfdsaadsfasd
+          o_file.puts "#{doc},#{followee}"
+        end
+      end
+      o_file.close
+    end
+
+    # load_lda_user()
+    # output_lda()
+  end
+
+  #
+  # Save the result of lda to file.
+  #
+  def output_lda()
+    output_path = "#{@lda_output_dir}"
+    Dir.mkdir "#{output_path}" unless File.exists? "#{output_path}"
+
+    @f_c.each_with_index do |community, c_index|
+      o_file = File.open("#{output_path}/edges_in_#{c_index}.dat", 'w')
+
+      doc_list = community.transpose.first
+      doc_list.each do |doc|
+        followees = @user.followees_of(doc) & @g_c[c_index]
+        followees -= @user.friends_of(doc) if @options[:mutual_mf] == false
+        # followees = User.find_by(id: doc).followees.pluck(:id) & @g_c[c_index]
+        followees.each do |followee|
+          o_file.puts "#{doc},#{followee}"
+        end
+      end
+
+      o_file.close
+    end
+    output_path
+  end
+
+  #
+  # This function is never used, use Evaluater instead
+  #
   def eva(return_str)
     # "training data: 2426 users, 5115 items, 15621 events, sparsity 99.87412\ntest data:     812 users, 957 items, 1715 events, sparsity 99.7793\nBPRMF num_factors=10 bias_reg=0 reg_u=0.0025 reg_i=0.0025 reg_j=0.00025 num_iter=30 learn_rate=0.05 uniform_user_sampling=True with_replacement=False update_j=True \ntraining_time 00:00:00.3930830 AUC 0.76095 prec@5 0.02635 recall@5 0.11289 NDCG 0.23057 num_items 5549 num_lists 812 testing_time 00:00:02.0510760\n"
     eva_hash = {}

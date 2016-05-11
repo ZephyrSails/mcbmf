@@ -18,7 +18,7 @@ module Loader
     mod_offset   = options[:mod_offset]
     # g_num_thresh = options[:g_num_thresh]
     input  = File.open(options[:source], 'r+')
-    output = File.open("#{dir}/edges.dat", 'w')
+    output = File.open("#{dir}/source.dat", 'w')
 
     # Used to count.
     count = 0
@@ -113,6 +113,7 @@ module Loader
 
       end
     end
+    input.close
     arr
   end
 
@@ -164,6 +165,7 @@ module Loader
       #   test_file.puts line
       # end
     end
+    input.close
   end
 
   #
