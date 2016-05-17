@@ -1,6 +1,6 @@
 class Evaluater
   require 'csv'
-  attr_accessor :test_file, :result_file, :test_arr, :result_arr, :test_hash, :result_hash
+  attr_accessor :test_file, :result_file, :test_arr, :result_arr, :test_hash, :result_hash, :hash, :result_arr
 
   MAX = 10000
 
@@ -233,14 +233,123 @@ class Evaluater
     o_file.puts "--conversion_rates:"
     puts "--conversion_rates:"
     o_file.puts group_conversion_rate(group_arr)
-    o_file.puts "--ndcgs:"
-    puts "--ndcgs:"
-    o_file.puts group_ndcg(group_arr)
+
+    # o_file.puts "--ndcgs:"
+    # puts "--ndcgs:"
+    # o_file.puts group_ndcg(group_arr)
+
     o_file.close
   end
 
   def linspace(low, high, num)
     [*1..num].collect { |i| low + i * (high-low)/num }
   end
+
+  ##############################################################################
+
+  def read_result
+    file = File.new(@result_file, "r")
+
+    @hash = Hash.new([])
+
+    file.each do |line|
+      pair = line.split(":")
+
+      @hash[pair[0]] = pair[1].split(",").map { |a| a.strip }
+    end
+    @hash
+  end
+
+  def top_k_report(top_k=5)
+    test_count = @test_arr.count
+    read_result
+
+    o_file = File.open("#{@dir}/report.dat", 'w')
+    o_file.puts "--test_edges.count:"
+    o_file.puts test_count
+    o_file.puts "--recalls:"
+    puts "--recalls:"
+    o_file.puts recall_arr = top_k_recall(top_k)
+    o_file.puts "--precisions:"
+    puts "--precisions:"
+    o_file.puts precision_arr = top_k_precision(top_k)
+    o_file.puts "--f1s:"
+    puts "--f1s:"
+    o_file.puts group_f1(recall_arr, precision_arr)
+    o_file.puts "--conversion_rates:"
+    puts "--conversion_rates:"
+    o_file.puts top_k_conversion_rate(top_k)
+
+    # o_file.puts "--ndcgs:"
+    # puts "--ndcgs:"
+    # o_file.puts top_k_ndcg(top_k)
+
+    o_file.close
+  end
+
+  def top_k_ndcg(top_k=5)
+    all_rel_arr = get_rel_arr(group_arr.last)
+    # i_rel_arr   = rel_arr.sort.reverse
+    log_arr     = get_log_arr(group_arr.last)
+
+    length = group_arr.count
+    arr = []
+    group_arr.each do |top_n|
+      rel_arr   = all_rel_arr[0..top_n]
+      i_rel_arr = rel_arr.sort.reverse
+      dcg       = product(rel_arr, log_arr)
+      idcg      = product(i_rel_arr, log_arr)
+      arr << (dcg / idcg)
+    end
+    arr
+  end
+
+  def top_k_recall(top_k=5)
+    result_arr = []
+    [*0...top_k].collect do |n|
+      result_arr += @hash.to_a.transpose[0].zip(@hash.to_a.transpose[1].transpose[n])
+      (@test_arr & result_arr).count.to_f / @test_arr.count
+    end
+  end
+
+  def top_k_precision(top_k=5)
+    result_arr = []
+    [*0...top_k].collect do |n|
+      result_arr += @hash.to_a.transpose[0].zip(@hash.to_a.transpose[1].transpose[n])
+      (@test_arr & result_arr).count.to_f / result_arr.count
+    end
+  end
+
+  def top_k_conversion_rate(top_k=5)
+    test_hash = Hash.new([])
+    test_arr.each do |follower, followee|
+      # puts "#{follower}, #{followee}"
+      test_hash[follower] += [followee]
+    end
+
+    # result_hash = Hash.new([])
+    # length = group_arr.count
+    # group_arr = [0] + group_arr
+    conversion_rate_arr = []
+    for i in 0...top_k do
+
+      # result_arr[group_arr[i-1]...group_arr[i]].each do |follower, followee|
+      #   result_hash[follower] += [followee]
+      # end
+
+      conversion_count = 0
+      test_hash.each do |follower, followees|
+        conversion_count += 1 unless (test_hash[follower] & @hash[follower][0..i]).empty?
+      end
+      conversion_rate_arr << (conversion_count / test_hash.count.to_f)
+    end
+    conversion_rate_arr
+  end
+
+
+
+  # def group_f1(recall_arr, precision_arr)
+  #   [*0...recall_arr.count].collect {|i|2*(recall_arr[i]*precision_arr[i])/(recall_arr[i]+precision_arr[i])}
+  # end
 
 end

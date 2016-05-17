@@ -53,9 +53,18 @@ class MyMf
 
       g_c_file = File.open("#{input_dir}/g_c_#{i}.dat", "r+")
       g_c = []
-      g_c_file.each_line do |line|
+      g_c_length = f_c.count / 2
+
+      g_c_length.times do
+        line = g_c_file.first
+        break if !line
         g_c << line.to_i
       end
+
+      # g_c_file.each_line do |line|
+      #   g_c << line.to_i
+      # end
+
       g_c_file.close
 
       o_file = File.open("#{output_dir}/edges_in_#{i}.dat", 'w')

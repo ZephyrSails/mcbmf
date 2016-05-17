@@ -9,21 +9,21 @@ class Recommender
     @recommend_num  = options[:recommend_options][:recommend_num]
   end
 
-  def run
+  def run(k=5)
     @hash = sum_score
 
     result_file = File.open("#{@dir}/result_edges.dat", "w")
 
-    # hash.each do |user, followees|
-    #   sorted_list = followees.sort_by {|k,v| v}.reverse
-    #   sorted_list.first(@recommend_num).each do |followee|
-    #     result_file.puts "#{user},#{followee[0]}"
-    #   end
+    # score_hash = recommend_based_on_score
+    # score_hash.each do |line|
+    #   result_file.puts line[0]
     # end
 
-    score_hash = recommend_based_on_score
-    score_hash.each do |line|
-      result_file.puts line[0]
+    hash.each do |key, value|
+      # .sort_by {|k, v| v}.reverse
+      # value.sort_by {|k, v| v}.reverse.transpose[0].join(",")
+      result_file.puts "#{key}:#{value.sort_by {|k, v| v}.reverse.transpose[0][0...k].join(",")}" if value.count >= k
+      # result_file.puts "#{key}:#{value.to_a.transpose[0][0...k].join(",")}"
     end
 
     result_file.close
@@ -72,11 +72,19 @@ class Recommender
       hash[follower] = Hash.new(0) if hash[follower] == 0
 
       # follower_hash = Hash.new(0) if
+      # puts followees
       followees.each_slice(2) do |a|
+        # puts a
+        # puts a[0]
+        # puts a[1]
+        # puts "follower: #{follower}"
+        # puts "f_c_weight[follower] #{f_c_weight[follower]}"
+
         hash[follower][a[0].to_i] += a[1].to_f * f_c_weight[follower]
       end
       # hash[follower] = follower_hash
     end
+    file.close
     hash
   end
 

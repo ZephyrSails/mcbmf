@@ -7,6 +7,17 @@ class SecNet
     # load(dir)
   end
 
+  def count_mutual_ratio
+    length = [@f_net.length, @g_net.length].max
+    edge_count = 0
+    mutual_edge_count = 0
+    for i in 0...length do
+      edge_count += followees_of(i).count
+      mutual_edge_count += friends_of(i).count
+    end
+    mutual_edge_count.to_f / edge_count
+  end
+
   def build_user_stack
     @user = []
     length = [@f_net.length, @g_net.length].max
@@ -304,7 +315,15 @@ class SecNet
     @f_net.each_with_index do |followees, user|
       # next if !followees
       next if !followees
-      followees -= friends_of(user) unless options[:mutual_lda]
+
+      if options[:random_lda] == true
+        followees = followees.shuffle[0..(followees.length/2)]
+      elsif options[:only_mutual_lda] == true
+        followees = friends_of(user)
+      else
+        followees -= friends_of(user) unless options[:mutual_lda]
+      end
+
       next if followees.empty? or (options[:more_than] != nil and followees.length <= options[:more_than])
 
       g_arr << followees

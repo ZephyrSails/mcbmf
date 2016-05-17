@@ -46,6 +46,7 @@ class Processor
   #                        roughly means we want to dispatch one followees to 2
   #                        comunities in average.
   #
+  # pro.preprocess;0;pro.user.count_edge;pro.user.hard_filter;pro.user.output_to("data/edges_f_03.csv")
   def initialize(group_name)
     # @sec_net      = sec_net
     # @group_name   = options
@@ -160,7 +161,8 @@ class Processor
   def evaluate()
     # eva = Evaluater.new(pro.dir);0
     @eva = Evaluater.new(@dir)
-    @eva.save_report
+    # @eva.save_report
+    @eva.top_k_report
   end
 
 end
