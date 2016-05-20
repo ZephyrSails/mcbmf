@@ -12,32 +12,32 @@ Things to need to do to run mcbmf:
 
 * Put options.yml under your test instance folder: vi data/alpha_m_m/options.yml follow the following format
 
----
-:group_name: alpha_m_m
-:load_options:
-  :reload: true
-  :source: data/edges_1283884.dat
-  :mod: 1
-  :mod_offset: 0
-  :test_rate: 0.1
-  :test_friend?: true
-  :g_num_thresh: 20
-:lda_options:
-  :more_than: 0
-  :num_topics: 5
-  :f_c_thresh: 0.01
-  :g_c_base: 1
-  :mutual_lda: true
-  :mutual_mf: true
-:mf_options:
-  :namespace: item_recommendation
-  :args:
-    recommender: WRMF
-    predict-items-number: '64'
-    measures: "'AUC,prec@5,recall@5,NDCG'"
-    recommender-options: "'num_factors=10'"
-:recommend_options:
-  :recommend_num: 3
+  ---
+  :group_name: alpha_m_m
+  :load_options:
+    :reload: true
+    :source: data/edges_1283884.dat
+    :mod: 1
+    :mod_offset: 0
+    :test_rate: 0.1
+    :test_friend?: true
+    :g_num_thresh: 20
+  :lda_options:
+    :more_than: 0
+    :num_topics: 5
+    :f_c_thresh: 0.01
+    :g_c_base: 1
+    :mutual_lda: true
+    :mutual_mf: true
+  :mf_options:
+    :namespace: item_recommendation
+    :args:
+      recommender: WRMF
+      predict-items-number: '64'
+      measures: "'AUC,prec@5,recall@5,NDCG'"
+      recommender-options: "'num_factors=10'"
+  :recommend_options:
+    :recommend_num: 3
 
 * Go to rails console: rails c
 
