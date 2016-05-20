@@ -77,6 +77,16 @@ class Processor
     puts "total spent: #{Time.now - start_at}"
   end
 
+  def run_mf()
+    start_at = Time.now
+    preprocess()
+
+    mf_process()
+    recommend()
+    evaluate()
+    puts "total spent: #{Time.now - start_at}"
+  end
+
   #
   # Load file, split file, preprocess, etc..
   #
@@ -129,7 +139,7 @@ class Processor
     f_list, g_arr, g_list, f_arr = User.get_cbmf_matrix(@options[:lda_options])
     @mylda = CbLda.new(@dir, "lda", f_list, g_arr, g_list, f_arr, @options[:lda_options])
     @mylda.run()
-    @f_c = @mylda.f_c
+    # @f_c = @mylda.f_c
     @mylda.output()
   end
 
@@ -154,7 +164,7 @@ class Processor
   def recommend()
     # pro.recom = Recommender.new(pro.dir, pro.mf_output_path, pro.f_c, pro.options);0
     # pro.recom.run
-    @recom = Recommender.new(@dir, "#{dir}/mf", @f_c, @options)
+    @recom = Recommender.new(@dir, "#{dir}/mf", @options)
     @recom.run()
   end
 

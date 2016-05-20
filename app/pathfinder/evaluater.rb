@@ -4,13 +4,19 @@ class Evaluater
 
   MAX = 10000
 
-  def initialize(dir)
+  def initialize(dir,other=false)
     @dir         = dir
-    @test_file   = "#{dir}/test_edges.dat"
-    @result_file = "#{dir}/result_edges.dat"
+    if other == false
+      @test_file = "#{dir}/test_edges.dat"
+      @result_file = "#{dir}/result_edges.dat"
+    else
+      @test_file = "data/other/test_edges.dat"
+      @result_file = "data/other/#{dir}.output"
+    end
 
     @test_arr    = CSV.read(@test_file)
     @result_arr  = CSV.read(@result_file)
+    @other       = other
     Time.now
   end
 
@@ -254,17 +260,36 @@ class Evaluater
 
     file.each do |line|
       pair = line.split(":")
-
       @hash[pair[0]] = pair[1].split(",").map { |a| a.strip }
     end
     @hash
+    file.close
+  end
+
+  def read_other_result
+    file = File.new(@result_file, "r")
+
+    @hash = Hash.new([])
+
+    file.each do |line|
+      pair = line.split("[").first.strip
+      @hash[pair] = line[/.*\[(.*?)\]/, 1].split(",").map { |pair| pair.split(":")[0].strip }
+      # @hash[pair[0]] = pair[1].split(",").map { |a| a.strip }
+    end
+    @hash
+    file.close
   end
 
   def top_k_report(top_k=5)
     test_count = @test_arr.count
-    read_result
+    read_result if @other == false
+    read_other_result if @other == true
 
-    o_file = File.open("#{@dir}/report.dat", 'w')
+    if @other == false
+      o_file = File.open("#{@dir}/report.dat", 'w')
+    else
+      o_file = File.open("data/other/report_#{@dir}.dat", 'w')
+    end
     o_file.puts "--test_edges.count:"
     o_file.puts test_count
     o_file.puts "--recalls:"
@@ -279,29 +304,43 @@ class Evaluater
     o_file.puts "--conversion_rates:"
     puts "--conversion_rates:"
     o_file.puts top_k_conversion_rate(top_k)
-
-    # o_file.puts "--ndcgs:"
-    # puts "--ndcgs:"
-    # o_file.puts top_k_ndcg(top_k)
+    o_file.puts "--ndcgs:"
+    puts "--ndcgs:"
+    o_file.puts top_k_ndcg(top_k)
 
     o_file.close
   end
 
   def top_k_ndcg(top_k=5)
-    all_rel_arr = get_rel_arr(group_arr.last)
-    # i_rel_arr   = rel_arr.sort.reverse
-    log_arr     = get_log_arr(group_arr.last)
-
-    length = group_arr.count
-    arr = []
-    group_arr.each do |top_n|
-      rel_arr   = all_rel_arr[0..top_n]
-      i_rel_arr = rel_arr.sort.reverse
-      dcg       = product(rel_arr, log_arr)
-      idcg      = product(i_rel_arr, log_arr)
-      arr << (dcg / idcg)
+    @test_hash = Hash.new([])
+    @test_arr.each do |follower, followee|
+      @test_hash[follower] += [followee]
     end
-    arr
+    log_arr = get_log_arr(top_k)
+    # log_arr = [1.0, 0.6309297535714575, 0.5, 0.43067655807339306, 0.38685280723454163]
+    ndcg_arr = []
+    @hash.each do |follower, followees|
+      all_rel_arr = Array.new(top_k, 0)
+      followees.each_with_index do |followee, index|
+        all_rel_arr[index] = 1 if @test_hash[follower].include? followee
+      end
+      arr = []
+      for i in 1..top_k do
+        rel_arr   = all_rel_arr[0..i]
+        if rel_arr.sum == 0
+          arr << 0
+          next
+        end
+        i_rel_arr = rel_arr.sort.reverse
+        dcg       = product(rel_arr, log_arr)
+        idcg      = product(i_rel_arr, log_arr)
+        arr << (dcg / idcg)
+      end
+      # puts arr
+      ndcg_arr << arr # unless arr.sum == 0
+    end
+    # ndcg_arr
+    ndcg_arr.transpose.collect { |a| a.sum / a.count }
   end
 
   def top_k_recall(top_k=5)

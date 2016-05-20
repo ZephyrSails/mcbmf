@@ -1,12 +1,26 @@
 class Recommender
   attr_accessor :dir, :mf_output_path, :f_c, :num_topics, :recommend_num, :hash
 
-  def initialize(dir, mf_output_path, f_c, options)
+  def initialize(dir, mf_output_path, options)
     @dir            = dir
     @mf_output_path = mf_output_path
-    @f_c            = f_c
     @num_topics     = options[:lda_options][:num_topics]
+    @f_c            = load_f_c
     @recommend_num  = options[:recommend_options][:recommend_num]
+  end
+
+  def load_f_c
+    f_c = []
+    for i in 0...@num_topics do
+      topic = []
+      file = File.open("#{dir}/lda/output_user/f_c_#{i}.dat")
+      file.each do |line|
+        topic << line.split(":").map.with_index { |str,at| at==0 ? str.to_i : str.to_f }
+      end
+      file.close
+      f_c << topic
+    end
+    f_c
   end
 
   def run(k=5)

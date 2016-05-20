@@ -1,28 +1,50 @@
 == README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Things to need to do to run mcbmf:
 
-Things you may want to cover:
+* Download the code.
 
-* Ruby version
+* Create a data folder under the mcbmf directory: cd mcbmf; mkdir data;
 
-* System dependencies
+* Put your edges dataset into data directory e.g: data/edges_1283884.dat
 
-* Configuration
+* Create a test instance folder under data directory, this folder will be used to hold your experiment result. e.g: mkdir data/alpha_m_m
 
-* Database creation
+* Put options.yml under your test instance folder: vi data/alpha_m_m/options.yml follow the following format
 
-* Database initialization
+---
+:group_name: alpha_m_m
+:load_options:
+  :reload: true
+  :source: data/edges_1283884.dat
+  :mod: 1
+  :mod_offset: 0
+  :test_rate: 0.1
+  :test_friend?: true
+  :g_num_thresh: 20
+:lda_options:
+  :more_than: 0
+  :num_topics: 5
+  :f_c_thresh: 0.01
+  :g_c_base: 1
+  :mutual_lda: true
+  :mutual_mf: true
+:mf_options:
+  :namespace: item_recommendation
+  :args:
+    recommender: WRMF
+    predict-items-number: '64'
+    measures: "'AUC,prec@5,recall@5,NDCG'"
+    recommender-options: "'num_factors=10'"
+:recommend_options:
+  :recommend_num: 3
 
-* How to run the test suite
+* Go to rails console: rails c
 
-* Services (job queues, cache servers, search engines, etc.)
+* Create your test instance, using the name of your test instance folder: > pro = Processor("alpha_m_m")
 
-* Deployment instructions
+* Run! pro.run
 
-* ...
+* The top_k result will be shown in report.dat, you can find it in your test instance folder.
 
-
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
+* Contact zephyrsails@gmail.com for bug report or acquire more info.
