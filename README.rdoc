@@ -4,13 +4,23 @@ Things to need to do to run mcbmf:
 
 * Download the code.
 
-* Create a data folder under the mcbmf directory: cd mcbmf; mkdir data;
+* Create a data folder under the mcbmf directory:
 
-* Put your edges dataset into data directory e.g: data/edges_1283884.dat
+    cd mcbmf; mkdir data;
 
-* Create a test instance folder under data directory, this folder will be used to hold your experiment result. e.g: mkdir data/alpha_m_m
+* Put your edges dataset into data directory e.g:
 
-* Put options.yml under your test instance folder: vi data/alpha_m_m/options.yml follow the following format
+    data/edges_1283884.dat
+
+* Create a test instance folder under data directory, this folder will be used to hold your experiment result. e.g:
+
+    mkdir data/alpha_m_m
+
+* Put options.yml under your test instance folder:
+
+    vi data/alpha_m_m/options.yml
+
+* Using the following format to write your options.yml
 
     ---
     :group_name: alpha_m_m
@@ -39,11 +49,17 @@ Things to need to do to run mcbmf:
     :recommend_options:
       :recommend_num: 3
 
-* Go to rails console: rails c
+* Go to rails console:
 
-* Create your test instance, using the name of your test instance folder: > pro = Processor("alpha_m_m")
+    rails c
 
-* Run! pro.run
+* Create your test instance, using the name of your test instance folder:
+
+    pro = Processor("alpha_m_m")
+
+* Run!
+
+    pro.run
 
 * The top_k result will be shown in report.dat, you can find it in your test instance folder.
 
